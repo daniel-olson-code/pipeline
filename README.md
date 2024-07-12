@@ -8,10 +8,19 @@ The Public version of this project is still under development.
 ---
 
 This project is was made to create a custom ETL.
-It allows you to run your programs asynchronously
+Although, I'm sure you can think of something better 
+to do with it.
+It allows you to run your programs asynchronously. 
+The program is run asynchronously across as 
+many servers you need or want.
 
 I've used the following code to request 30,000 reports
-daily and which is at least 90,000 API calls to Amazon Ads API per day.
+daily and which is at least 90,000 API calls to Amazon Ads API per day
+and pushing that into a PostgreSQL server.
+All for pretty cheap, 
+including a PostgreSQL server with over 600 GB of data
+and growing,
+it's under a $100.
 
 Learn by Example:
 ```
