@@ -1,8 +1,102 @@
 ## Pipeline.
 
+---
 
+#### Note:
+The Public version of this project is still under development.
+
+---
 
 This project is was made to create a custom ETL.
 It allows you to run your programs asynchronously
+
+I've used the following code to request 30,000 reports
+daily and which is at least 90,000 API calls to Amazon Ads API per day.
+
+Learn by Example:
+```
+{
+    "env": "var",
+    "this": "is a json"
+}
+
+accounts:
+    python 
+    request_report 
+    amazon_ads_api.py
+
+request: 
+    python 
+    request_report 
+    amazon_ads_api.py
+
+status:
+    python
+    report_status
+    amazon_ads_api.py
+
+download:
+    python
+    download_report
+    amazon_ads_api.py
+    
+upload:
+    python
+    upload_report_to_db
+    my_db.py
+
+
+report_api = request | status | download | upload
+accounts_pipe = | accounts
+
+
+# # single use case
+# report_api()
+
+
+for account in accounts():
+    report_api(account)
+
+
+```
+
+```
+step1:
+    python
+    main
+    `
+def main(*args):
+    return [
+        {'a': 23, 'b': 'hello'},    
+        {'a': 24, 'b': 'bye'},
+    ]
+`
+
+step2:
+    postgres
+    new_table
+    `
+select * 
+from new_table
+where a = 24
+ `
+ 
+step3:
+    python
+    main
+    `
+def main(data):
+    assert len(data) == 1
+    assert data[0]['a'] == 24
+    data.append({'a': 25, 'b': 'howdy'})
+    return data    
+`
+ 
+ 
+ pipe = step1 | step2 | step3
+ 
+ pipe()
+
+```
 
 
