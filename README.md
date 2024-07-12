@@ -6,7 +6,7 @@ The Public version of this project is still under development.
 
 ---
 
-This project is was made to create a custom ETL.
+This project was made to create a custom ETL.
 Although, I'm sure you can think of something better 
 to do with it.
 It allows you to run your programs asynchronously. 
