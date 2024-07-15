@@ -82,10 +82,10 @@ def main(*args):
 
 step2:
     postgres
-    new_table
+    _
     `
 select * 
-from new_table
+from table
 where a = 24
  `
  
