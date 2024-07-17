@@ -1,9 +1,5 @@
 ## Pipeline.
 
-
-#### Note:
-The Public version of this project is still under development.
-
 ---
 
 This project was made to create a custom ETL.
