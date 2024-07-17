@@ -28,7 +28,7 @@ Learn by Example:
     "this": "is a json"
 }
 
-$productino
+$production
 
 accounts:
     python 

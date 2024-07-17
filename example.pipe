@@ -1,0 +1,55 @@
+$ production
+
+accounts:
+    python
+    accounts
+    example.py
+
+request:
+    python
+    request_report
+    example.py
+
+status:
+    python
+    get_status
+    example.py
+
+download:
+    python
+    get_report
+    example.py
+
+manipulate_data:
+    sqlite3
+    some_table
+    `
+SELECT
+    *,
+    CASE
+        WHEN sales = 0
+        THEN 0.0
+        ELSE spend / sales
+    END AS acos
+FROM some_table
+`
+
+upload:
+    python
+    upload_to_db
+    example.py
+
+list = accounts |
+pipe = request | status | download | manipulate_data | upload
+
+
+# pipe(value)  # single call
+
+# # or
+
+for value in list():
+    pipe(value)
+
+
+
+
