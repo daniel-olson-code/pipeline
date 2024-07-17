@@ -1,9 +1,11 @@
+# the defailt scope is set to `production` for all steps (imports)
 $ production
 
+# step 1: `accounts`
 accounts:
-    python
-    accounts
-    example.py
+    python  # <-- select the language to be run. currently only python, sqlite3 and postgres are available
+    accounts  # define the function or table name that will be used
+    example.py  # either provide a file or write code directly using the "`" char (see below example)
 
 request:
     python
@@ -12,17 +14,19 @@ request:
 
 status:
     python
+    $ testing  # <-- "scope" a lower scope will be given less priority over higher scopes. See PIPE_WORKER_SCOPES in `.env` file
     get_status
     example.py
 
 download:
     python
+    !9  # <-- "priority" higher numbers are more important and run first within their scope.
     get_report
     example.py
 
 manipulate_data:
     sqlite3
-    some_table
+    some_table  # *vvvv* see below for writing code directly *vvvv*
     `
 SELECT
     *,
@@ -34,21 +38,45 @@ SELECT
 FROM some_table
 `
 
+# this one's just to show postgres as well
+manipulate_data_again:
+    postgres
+    another_table
+    `
+select
+    *,
+    CASE
+        WHEN spend = 0
+        THEN 0.0
+        ELSE sales / spend
+    END AS roas
+from another_table
+`
+
 upload:
     python
     upload_to_db
     example.py
 
-list = accounts |
-pipe = request | status | download | manipulate_data | upload
+
+# these are pipe and what will be run
+# each step will be run individually and could be run on a different computer each time
+accounts_pipe = | accounts  # single pipes currently need a `|` before or behind the value
+api_pipe = request | status | download | manipulate_data | manipulate_data_again | upload
 
 
-# pipe(value)  # single call
+# currently there are only two syntax's for "running" pipes.
+# either by itself: `pipe()`
+# or in a loop:
+# `for value in pipe1():
+#     pipe2(value)
 
-# # or
+# v = pipe(accounts_pipe)  # <-- single call
+# pipe2(v)
 
-for value in list():
-    pipe(value)
+# right not you cannot pass arguments within the pipe being used for the for loop.
+for account in accounts_pipe():
+    api_pipe(account)
 
 
 
