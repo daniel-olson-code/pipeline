@@ -29,7 +29,7 @@ The following code is how you run your programs on the server.
 Learn by Example:
 ```python
 # the defailt scope is set to `production` for all steps (imports)
-# setting scopes is how you make new steps with errors 
+# setting scopes is how you make new steps with errors
 # not slow down your servers by setting them to a lower scope
 $ production
 
@@ -92,15 +92,16 @@ upload:
 
 
 # these are pipes and what will tell the server what order to run the steps
+# and also transfer the returned  data between steps
 # each step will be run individually and could be run on a different computer each time
 accounts_pipe = | accounts  # single pipes currently need a `|` before or behind the value
 api_pipe = request | status | download | manipulate_data | manipulate_data_again | upload
 
 
 # currently there are only two syntax's for "running" pipes.
-# either by itself: 
+# either by itself:
 # pipe()
-# 
+#
 # or in a loop:
 # for value in pipe1():
 #     pipe2(value)
