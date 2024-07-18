@@ -38,20 +38,20 @@ SELECT
 FROM some_table
 `
 
-# this one's just to show postgres as well
-manipulate_data_again:
-    postgres
-    another_table
-    `
-select
-    *,
-    CASE
-        WHEN spend = 0
-        THEN 0.0
-        ELSE sales / spend
-    END AS roas
-from another_table
-`
+## this one's just to show postgres as well
+#manipulate_data_again:
+#    postgres
+#    another_table
+#    `
+#select
+#    *,
+#    case
+#        when spend = 0
+#        then 0.0
+#        else sales / spend
+#    end AS roas
+#from another_table
+#`
 
 upload:
     python
@@ -66,18 +66,17 @@ api_pipe = request | status | download | manipulate_data | manipulate_data_again
 
 
 # currently there are only two syntax's for "running" pipes.
-# either by itself: `pipe()`
+# either by itself:
+# pipe()
+#
 # or in a loop:
-# `for value in pipe1():
+# for value in pipe1():
 #     pipe2(value)
 
+# # Another Example:
 # v = pipe(accounts_pipe)  # <-- single call
 # pipe2(v)
 
 # right not you cannot pass arguments within the pipe being used for the for loop.
 for account in accounts_pipe():
     api_pipe(account)
-
-
-
-

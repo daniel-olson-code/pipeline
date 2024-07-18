@@ -22,9 +22,15 @@ running the `worker.py` or `c_worker.pyx` scripts or their `main()` function,
 these servers are typically pretty small.
 Below you'll find the requirements and usage.
 
+---
+
+The following code is how you run your programs on the server.
+
 Learn by Example:
 ```python
 # the defailt scope is set to `production` for all steps (imports)
+# setting scopes is how you make new steps with errors 
+# not slow down your servers by setting them to a lower scope
 $ production
 
 # step 1: `accounts`
@@ -64,20 +70,20 @@ SELECT
 FROM some_table
 `
 
-# this one's just to show postgres as well
-manipulate_data_again:
-    postgres
-    another_table
-    `
-select
-    *,
-    case
-        when spend = 0
-        then 0.0
-        else sales / spend
-    end AS roas
-from another_table
-`
+## this one's just to show postgres as well
+#manipulate_data_again:
+#    postgres
+#    another_table
+#    `
+#select
+#    *,
+#    case
+#        when spend = 0
+#        then 0.0
+#        else sales / spend
+#    end AS roas
+#from another_table
+#`
 
 upload:
     python
@@ -92,11 +98,14 @@ api_pipe = request | status | download | manipulate_data | manipulate_data_again
 
 
 # currently there are only two syntax's for "running" pipes.
-# either by itself: `pipe()`
+# either by itself: 
+# pipe()
+# 
 # or in a loop:
-# `for value in pipe1():
+# for value in pipe1():
 #     pipe2(value)
 
+# # Another Example:
 # v = pipe(accounts_pipe)  # <-- single call
 # pipe2(v)
 
