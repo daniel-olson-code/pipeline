@@ -1,44 +1,61 @@
+"""Demo script for the Pipeline project.
+
+This script demonstrates how to use the Pipeline project from GitHub.
+It sets up and runs a demo pipeline system with a bucket, a pipeline,
+and multiple worker processes. The script can use either Python or Cython
+modules, depending on availability.
+
+Note:
+    The Cython modules (prefixed with 'c_') can be built separately by
+    running `python build.py`.
+"""
+
 import multiprocessing
-import contextlib
 import time
 
 try:
+    # Attempt to import Cython modules
     from c_worker import main as run_worker
     from c_bucket import main as run_bucket
     from c_pipeline import main as run_pipeline
 except ModuleNotFoundError:
+    # Fall back to Python modules if Cython modules are not available
     from worker import main as run_worker
     from bucket import main as run_bucket
     from pipeline import main as run_pipeline
 
 
-def attempted_to_kill(process: multiprocessing.Process):
-    """
-    Attempts to kill a process gracefully
+def attempted_to_kill(process: multiprocessing.Process) -> None:
+    """Attempts to kill a process gracefully, then forcefully if necessary.
 
     Args:
-        process (multiprocessing.Process): The process to kill
+        process: The multiprocessing.Process to kill.
 
     Returns:
         None
     """
-    with contextlib.suppress(Exception):
-        process.terminate()
-        process.kill()
+    process.terminate()
+    try:
+        process.join(timeout=5)  # Wait for 5 seconds
+    except TimeoutError:
+        process.kill()  # Force kill if process doesn't terminate in time
 
 
-def main():
-    """
-    Main function to run the pipeline
+def main() -> None:
+    """Runs the demo pipeline system.
+
+    This function sets up and runs the bucket, pipeline, and worker processes
+    to demonstrate the functionality of the Pipeline project. It manages the
+    lifecycle of these processes and ensures proper cleanup on termination.
 
     Returns:
         None
     """
-    # open bucket first to allow pipeline and worker to stor files
+    # Open bucket first to allow pipeline and worker to store files
     bucket_process = multiprocessing.Process(target=run_bucket)
-    # then open pipeline to allow worker to request steps
+    # Then open pipeline to allow worker to request steps
     pipeline_process = multiprocessing.Process(target=run_pipeline)
-    # the start as many workers as you would like
+    # Start as many workers as you would like
     worker1_process = multiprocessing.Process(target=run_worker)
     worker2_process = multiprocessing.Process(target=run_worker)
     worker3_process = multiprocessing.Process(target=run_worker)
@@ -65,10 +82,5 @@ def main():
         attempted_to_kill(bucket_process)
 
 
-if __name__ == "__main__":  # confirms that the code is under main function
+if __name__ == "__main__":
     main()
-
-
-
-
-
