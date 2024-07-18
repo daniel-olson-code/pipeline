@@ -165,7 +165,7 @@ pipeline.upload_pipe_code_from_file('your_script.pipe')
 # the defailt scope is set to `production` for all steps (imports)
 # setting scopes is how you make new steps with errors
 # not slow down your servers by setting them to a lower scope
-$ production
+$ production-small
 
 # step 1: `accounts`
 accounts:
@@ -180,7 +180,7 @@ request:
 
 status:
     python
-    $ testing  # <-- "scope" a lower scope will be given less priority over higher scopes. See PIPE_WORKER_SCOPES in `.env` file
+    $ testing-small  # <-- "scope" for a single step. A lower scope will be given less priority over higher scopes. See PIPE_WORKER_SCOPES in `.env` file
     get_status
     example.py
 
@@ -229,7 +229,7 @@ upload:
 # and also transfer the returned  data between steps
 # each step will be run individually and could be run on a different computer each time
 accounts_pipe = | accounts  # single pipes currently need a `|` before or behind the value
-api_pipe = request | status | download | manipulate_data | manipulate_data_again | upload
+api_pipe = request | status | download | manipulate_data | upload
 
 
 # currently there are only two syntax's for "running" pipes.
