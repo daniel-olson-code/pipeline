@@ -91,7 +91,7 @@ upload:
     example.py
 
 
-# these are pipe and what will be run
+# these are pipes and what will tell the server what order to run the steps
 # each step will be run individually and could be run on a different computer each time
 accounts_pipe = | accounts  # single pipes currently need a `|` before or behind the value
 api_pipe = request | status | download | manipulate_data | manipulate_data_again | upload
