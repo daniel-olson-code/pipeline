@@ -111,6 +111,7 @@ api_pipe = request | status | download | manipulate_data | manipulate_data_again
 # pipe2(v)
 
 # right not you cannot pass arguments within the pipe being used for the for loop.
+# in this case `accounts_pipe()` cannot be `accounts_pipe(some_value)`
 for account in accounts_pipe():
     api_pipe(account)
 ```
