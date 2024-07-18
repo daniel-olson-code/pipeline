@@ -1,32 +1,166 @@
-## Pipeline
+# Pipeline
 
----
+Pipeline is an asynchronous ETL (Extract, Transform, Load) system that uses a custom scripting language to run code across multiple servers, one step at a time. It's designed for efficient handling of large-scale data processing tasks, particularly those involving APIs with long wait times or I/O-heavy workloads.
 
-To test this project run `python demo.py`
-then in a separate terminal `example.py`.
-`demo.py` showcases the server(s) 
-and `example.py` showcases the client uploading the code to the server(s).
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Supported Languages](#supported-languages)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Learn by Examples](#learn-by-example)
+- [Performance](#performance) <!--- - [Contributing](#contributing) -->
+- [Future of Pipeline](#plans)
+- [License](#license)
 
-This project was made to create a custom ETL.
-Although, I'm sure you can think of something better 
-to do with it.
-It allows you to run your programs asynchronously between multiple languages. 
-The program is run asynchronously across as 
-many servers you need or want.
+## Features
+- Asynchronous execution of code across multiple servers
+- Custom scripting language for defining ETL pipelines
+- Support for Python, SQLite3, and PostgreSQL
+- Efficient handling of APIs with long wait times
+- Optimized for I/O-heavy workloads
+- Scalable architecture for processing large amounts of data
 
-You program is split into `steps`.
-Each `step` is put within a `pipe`.
-The `pipe` tells the server the order of the `step`s.
-All `step`s are run on as many servers as you have 
-running the `worker.py` or `c_worker.pyx` scripts or their `main()` function,
-these servers are typically pretty small.
-Below you'll find the requirements and usage.
+## Installation
+1. Clone the repository: `git clone https://github.com/yourusername/pipeline.git
+cd pipeline`
+2. Install required packages: `pip install -r requirements.txt`
+3. (Optional) Build Cython files: `python build.py` (This can give a 3x performance boost)
+4. (Optional) Configure PostgreSQL settings in the `.env` file.
 
----
+## Quick Start
+1. Run the demo server: `python demo.py`
+2. In a separate terminal, run the example client: `python example.py`
 
-The following code is how you run your programs on the server.
+## Supported Languages
+- Python
+- SQLite3
+- PostgreSQL
 
-Learn by Example:
+## Configuration
+* Setup at least 4 servers on a private network (they can be small, you can technically run all these on one server like `demo.py` does but that's not recommended)
+* Create a server running `python bucket.py` or something like `python -c "import c_bucket;c_bucket.main()"` 
+* Create a server running `python pipeline.py` or something like `python -c "import c_pipeline;c_pipeline.main()"` 
+* Create a server running `python worker.py` or something like `python -c "import c_worker;c_worker.main()"` 
+* Edit the `.env` on each server to access the private ip. Change `PIPE_WORKER_HOST` to refer to the server running `pipeline.py` on server running `worker.py` and change `BUCKET_CLIENT_HOST` to refer to the server running `bucket.py` on both the `worker.py` server and the `pipeline.py` server
+* Add "worker" servers until desired speed
+* Create a server with private and public network access and use this to run `pipeline.upload_pipe_code_from_file` or `pipeline.upload_pipe_code` uploading the script to the server to be run.
+* All workers must also have the files necessary to run your code, pip installs and all
+
+
+* (Optionally) The `PIPE_WORKER_SUBPROCESS_JOBS` value within the `.env` file can be set to `true` or `false`(really anything but true). This configuration lets you run python code in a subprocess or within the "worker" script. Setting it to false gives a very slight performance increase, but requires you restart the server every time you make a change to your project.
+
+
+## Usage
+
+Pipeline uses a custom scripting language to define ETL processes. Here's how to use it:
+
+### Basic Structure
+
+A Pipeline script consists of steps and pipes. Each step defines a task, and pipes determine the order of execution.
+
+```python
+# Step definition
+step_name:
+    language
+    function_or_table_name
+    source_file_or_code
+
+# Pipe definition
+pipe_name = | step1 | step2 | step3
+
+# Execution
+pipe_name()
+```
+
+### Supported Languages
+
+- python: For Python code
+- sqlite3: For SQLite queries
+- postgres: For PostgreSQL queries
+
+### Scopes and Priorities
+
+Use scopes and priorities to control execution:
+
+```python
+$ production  # Set default scope
+
+
+step_name:
+    python
+    !9  # Set priority (higher numbers run first within their scope)
+    $ testing     # Set a lower priority scope
+    function_name
+    source_file
+```
+
+### Writing Code Directly
+
+For short snippets, you can write code directly in the script:
+
+```python
+step_name:
+    sqlite3
+    table_name
+    `
+    SELECT * FROM table
+    WHERE condition = 'value'
+    `
+```
+
+### Defining Pipes
+
+Pipes determine the order of step execution:
+
+```python
+single_pipe = | step1  # or `| step1`
+normal_pipe = step1 | step2 | step3
+```
+
+### Executing Pipes
+
+There are two ways to execute pipes:
+
+#### Single call
+
+```python
+pipe1()
+result1 = pipe2()
+result2 = pipe3(result1)
+pipe4(result2)
+
+pipe5(result1, result2)
+
+# incorrect --> pipe3(pipe2())  #  this syntax is currently not supported
+# also incorrect, they must be on one line as of now:
+# pipe3(
+#   result1
+# )
+```
+
+#### Looped execution
+
+```python
+for item in pipe1():
+    pipe2(item)
+# incorrect --> for item in pipe1(result):  # syntax not supported for now
+```
+
+### Running Your Pipeline
+
+- Save your pipeline script as a .pipe file.
+- Use the Pipeline API to upload and run your script:
+```python
+import pipeline
+
+pipeline.upload_pipe_code_from_file('your_script.pipe')
+```
+
+
+## Learn by Example
+
 ```python
 # the defailt scope is set to `production` for all steps (imports)
 # setting scopes is how you make new steps with errors
@@ -116,31 +250,33 @@ for account in accounts_pipe():
     api_pipe(account)
 ```
 
----
+## Performance
+Pipeline is specifically designed to handle I/O-heavy workloads efficiently. It excels in scenarios such as:
 
-### Real World Example
+- Making numerous API calls, especially to services with long processing times
+- Handling large-scale data transfers between different systems
+- Concurrent database operations
 
-I've used similar to the above code to request 30,000 reports
-daily, which is at least 90,000 API calls to Amazon Ads API 
-per day
-and pushing that into a PostgreSQL server, 
-the process is done within a few hours (this could be sped up by adding more workers, but my timeframe is 24 so that's not needed).
-All for pretty cheap, 
-including a PostgreSQL server with over 600 GB of data
-and growing,
-it's under a $100.
+For instance, Pipeline is currently being used by an agency to request 30,000 reports daily from the Amazon Ads API, resulting in at least 90,000 API calls per day. This process, which includes pushing data into a PostgreSQL server with over 600 GB of data, is completed within a few hours(adding more workers could make this alot faster). The system's efficiency allows for this level of performance at a cost of under $100, including database expenses, actually the servers requesting the data are about $25.
 
-For those who aren't familiar with Amazon Ads API, Amazon has you request a report, 
-wait a long time for the report to be done.
-Check the status until it's done.
-Then download the report. 
-Synchronous ETL's perform very poorly for these API's 
-and don't even work for accounts with 200+ profiles (profiles are like sub-accounts).
+The asynchronous nature of Pipeline makes it particularly suited for APIs like Amazon Ads, where there are significant wait times between requesting a report and its availability for download. Traditional synchronous ETL processes struggle with such APIs, especially for agencies with numerous profiles.
+
+## Plans
+
+If this projects sees some love, or I just find more free time, I'd like to support more programming languages. Even compiled languages such as `go` and `rust`. Allowing teams that write different languages to work on the same program.
+
+Turning this project into a pip package.
+
+I want to rewrite this in rust for performance.
 
 
----
+<!---
+your comment goes here
+and here
 
+## Contributing
+[Contributing guidelines]
+-->
 
-
-
-
+## License
+* MIT License
