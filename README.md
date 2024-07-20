@@ -31,7 +31,7 @@ cd pipeline`
 
 ## Quick Start
 1. Run the demo server: `python demo.py`
-2. In a separate terminal, run the example client: `python example.py`
+2. In a separate terminal, run the example uploading code: `python example.py`
 
 ## Supported Languages
 - Python
@@ -68,7 +68,7 @@ step_name:
     source_file_or_code
 
 # Pipe definition
-pipe_name = | step1 | step2 | step3
+pipe_name = step1 | step2 | step3
 
 # Execution
 pipe_name()
@@ -105,7 +105,7 @@ step_name:
     sqlite3
     table_name
     `
-    SELECT * FROM table
+    SELECT * FROM table_name
     WHERE condition = 'value'
     `
 ```
@@ -115,7 +115,7 @@ step_name:
 Pipes determine the order of step execution:
 
 ```python
-single_pipe = | step1  # or `| step1`
+single_pipe = | step1  # or `step1 |`
 normal_pipe = step1 | step2 | step3
 ```
 
@@ -133,11 +133,11 @@ pipe4(result2)
 
 pipe5(result1, result2)
 
-# incorrect --> pipe3(pipe2())  #  this syntax is currently not supported
+# incorrect --> `pipe3(pipe2())`  #  this syntax is currently not supported
 # also incorrect, they must be on one line as of now:
-# pipe3(
+# `pipe3(
 #   result1
-# )
+# )`
 ```
 
 #### Looped execution
@@ -145,7 +145,7 @@ pipe5(result1, result2)
 ```python
 for item in pipe1():
     pipe2(item)
-# incorrect --> for item in pipe1(result):  # syntax not supported for now
+# incorrect --> `for item in pipe1(result):`  # syntax not supported for now
 ```
 
 ### Running Your Pipeline
@@ -162,9 +162,10 @@ pipeline.upload_pipe_code_from_file('your_script.pipe')
 ## Learn by Example
 
 ```python
-# the defailt scope is set to `production` for all steps (imports)
+# the defailt scope is set to `production-small` for all steps (imports)
 # setting scopes is how you make new steps with errors
-# not slow down your servers by setting them to a lower scope
+# not slow down your servers by setting them to a lower scope.
+# And/or how you handle processes that either require and do not require big machines to run
 $ production-small
 
 # step 1: `accounts`
@@ -263,7 +264,7 @@ The asynchronous nature of Pipeline makes it particularly suited for APIs like A
 
 ## Plans
 
-If this projects sees some love, or I just find more free time, I'd like to support more programming languages. Even compiled languages such as `go` and `rust`. Allowing teams that write different languages to work on the same program.
+If this projects sees some love, or I just find more free time, I'd like to support more languages. Even compiled languages such as `rust`, `go` and `c++`. Allowing teams that write different languages to work on the same program.
 
 Turning this project into a pip package.
 
