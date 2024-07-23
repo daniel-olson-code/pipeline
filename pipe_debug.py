@@ -12,6 +12,7 @@ DEBUG_TABLE = 'debug'
 
 pg = postgres.get_postgres_from_env()
 
+
 def counter(_id: str, change: int | float = 1, table_name: str = 'counter'):
     """
     a counter that can be used to track the progress of a task

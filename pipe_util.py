@@ -216,6 +216,7 @@ class PipeObject(object):
         self.__dict__ = json
         return self
 
+
 # from __future__ import annotations
 # import json
 # import math

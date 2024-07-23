@@ -81,25 +81,4 @@ def loads(*args, **kwargs):
     """
     return orjson.loads(*args, **kwargs)
 
-# try:
-#     import orjson
-# except ModuleNotFoundError:
-#     print('please "pip install orjson" for performance.')
-#     import json
-#     class orjson:
-#         @staticmethod
-#         def dumps(*args, **kwargs):
-#             return json.dumps(*args, **kwargs).encode()
-#         @staticmethod
-#         def loads(*args, **kwargs):
-#             if isinstance(args[0], bytes):
-#                 args = (args[0].decode(), *args[1:])
-#             return json.loads(*args, **kwargs)
-#
-#
-# def dumps(*args, **kwargs):
-#     return orjson.dumps(*args, **kwargs)
-#
-#
-# def loads(*args, **kwargs):
-#     return orjson.loads(*args, **kwargs)
+

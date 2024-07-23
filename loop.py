@@ -9,6 +9,7 @@ import pipe
 import pipe_util
 import pipe_interpreter
 
+
 def pipe_eval(index: int, txt: str, variables: dict):
     """
     Evaluate a pipe expression and execute its steps.
@@ -41,6 +42,7 @@ def pipe_eval(index: int, txt: str, variables: dict):
             del variables['__steps__'][step.id]
             variables['__starters__'].remove(step.id)
         return data
+
 
 def check_loop(
         index: int,
@@ -117,6 +119,7 @@ def check_loop(
         set_index(next_line - 1)
         return True
     return False
+
 
 # from typing import Callable
 #

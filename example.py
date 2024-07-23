@@ -7,7 +7,6 @@ import sys
 
 import pipeline
 import sqlite3_helper
-import postgres
 import step
 
 import pipe_debug

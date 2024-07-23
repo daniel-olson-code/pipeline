@@ -115,6 +115,7 @@ def check_for_pipe(index: int, line: str, variables: dict) -> bool:
         return True
     return False
 
+
 # import pipe_util
 # import pipe_interpreter
 # import step_definition

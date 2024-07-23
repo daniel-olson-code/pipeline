@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import psycopg2
-import psycopg2.extensions
-import psycopg2.extras
-import psycopg2.errors
 import os
 import json
 import datetime
 from typing import Union, List, Dict, Any, Optional, Callable
+
+import psycopg2
+import psycopg2.extensions
+import psycopg2.extras
+import psycopg2.errors
 
 try:
     import dotenv
@@ -97,6 +98,7 @@ def guess_data_type(column: List):
     v = v[0]
     return v
 
+
 def guess_table_schema(table: List[Dict]):
     """
     Guesses the schema for a table represented as a list of dictionaries.
@@ -114,6 +116,7 @@ def guess_table_schema(table: List[Dict]):
                 vv[k] = []
             vv[k].append(v)
     return {k: guess_data_type(v) for k, v in vv.items()}
+
 
 class Postgres:
     """
@@ -385,6 +388,7 @@ class Postgres:
                             f'TYPE {new_type} '
                             f'USING {column_name}::text::{new_type};')
                 conn.commit()
+
 
 # from __future__ import annotations
 # import psycopg2
