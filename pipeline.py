@@ -332,7 +332,7 @@ def get_steps(scopes: list, limit=50, chunk_size=100):
                    f'   status = \'{step.StepStatus.pending.value}\' '
                    f'   or (epoch < {time.time() - (60 * 60 * 2)} and status = \'{step.StepStatus.working.value}\')'
                    f')'
-                   f'ORDER BY CASE scope {case_statement} END, priority '  # , COALESCE(velocity, 1.0/0.0)
+                   f'ORDER BY CASE scope {case_statement} END, priority desc '  # , COALESCE(velocity, 1.0/0.0)
                    f'LIMIT ? OFFSET ?')
             cur.execute(sql, (*scopes, *scopes, chunk_size, offset))
             rows = cur.fetchall()
