@@ -76,9 +76,11 @@ def check_loop(
         var_name = pipe_util.trim(before.strip()[3:])
         loop_var = pipe_util.trim(after.strip()[:-1])
 
-        loop_var = pipe_eval(index, loop_var, variables)
+        loop_val = pipe_eval(index, loop_var, variables)
+        if '(' in loop_var:
+            loop_var = loop_var[:loop_var.find('(')]
 
-        if not isinstance(loop_var, list):
+        if not isinstance(loop_val, list):
             raise TypeError(f'Line {index + 1}: Loop variable must be a list')
 
         def get_indentation(text: str):
@@ -106,10 +108,21 @@ def check_loop(
             future_lines.append(j)
             next_line = j + 1
 
-        for _i, value in enumerate(loop_var):
+        for _i, value in enumerate(loop_val):
             _code = f'def main(*args):\n    return {value}'
             sd = step_definition.StepDefinition(f'def_{var_name}_{_i}', 'PYTHON', 'main', '', _code, True)
             sd.scope = variables['__scope__']
+
+            # inherent priority, scope and velocity from parent
+            loop_pipe = variables.get(loop_var)
+            if isinstance(loop_pipe, pipe.Pipe):
+                parent_sd_name = loop_pipe.imports.split(',')[-1]
+                parent_sd = variables.get(parent_sd_name)
+                if isinstance(parent_sd, step_definition.StepDefinition):
+                    sd.priority = parent_sd.priority
+                    sd.scope = parent_sd.scope
+                    sd.velocity = parent_sd.velocity
+
             variables[f'def_{var_name}_{_i}'] = sd
             p = pipe.Pipe(var_name, f'def_{var_name}_{_i}')
             variables[var_name] = p.create_steps(index, variables, '')
