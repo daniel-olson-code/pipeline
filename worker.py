@@ -13,6 +13,9 @@ import step
 import pipeline
 import bucket
 import json_parser
+import pipe_debug
+
+import asyncio_pool
 
 try:
     import dotenv
@@ -20,7 +23,6 @@ try:
 except ModuleNotFoundError:
     pass
 
-import pipe_debug
 # pipeline.load_db()
 
 WORKER_HOST = os.environ.get('PIPE_WORKER_HOST', 'localhost')
@@ -40,12 +42,12 @@ class HandleStatus(enum.Enum):
 
 
 def job(step_id: str | None = None) -> None:
-    t = time.time()
+    # t = time.time()
     if step_id:
         _step = pipeline.get_step(step_id)
     else:
         _step = pipeline.get_step(os.environ['STEP_ID'])
-    print('handling', _step)
+    print('handling', _step.name)
     try:
         args = [pipeline.get_data(_id) for _id in _step.parents]
         r: step.Result = _step.run(*args)
@@ -61,7 +63,7 @@ def job(step_id: str | None = None) -> None:
             request_cancel(_step.id)
         else:
             raise Exception('Invalid step status')
-        pipe_debug.counter(f'[step].{_step.name}', time.time() - t, pipe_debug.DEBUG_TABLE)
+        # pipe_debug.counter(f'[step].{_step.name}', time.time() - t, pipe_debug.DEBUG_TABLE)
     except Exception as e:
         print(' - Error - ')
         print(str(e))
@@ -76,30 +78,34 @@ def job(step_id: str | None = None) -> None:
 async def run(step_id: str | None = None) -> None:
     if PIPE_WORKER_SUBPROCESS_JOBS != 'true':
         return job(step_id)
-    print('sub process')
     env = {**os.environ, 'STEP_ID': step_id}
-    p = subprocess.Popen(
-        shlex.split(JOB_CMD),
-        env=env,
-        # stdout=subprocess.PIPE,
-        # stderr=subprocess.PIPE,
-    )
-    p.wait()
-    # stdout, stderr = p.communicate()
-    # print(stdout, stderr)
-    # return p.returncode == 0
+    p = await asyncio.create_subprocess_shell(JOB_CMD, env=env)
+    await p.wait()
+    # env = {**os.environ, 'STEP_ID': step_id}
+    # p = subprocess.Popen(
+    #     shlex.split(JOB_CMD),
+    #     env=env,
+    #     # stdout=subprocess.PIPE,
+    #     # stderr=subprocess.PIPE,
+    # )
+    # p.wait()
+    #
+    # # stdout, stderr = p.communicate()
+    # # print(stdout, stderr)
+    # # return p.returncode == 0
 
 
 @pipe_debug.timeit
 async def handle(scopes):
     steps = request_steps(scopes)
 
-    print('steps', steps)
+    # print('steps', steps)
     if not steps:
         # yield HandleStatus.none
         # return
         return False
 
+    # # Example 1
     # tasks = [asyncio.create_task(run(s)) for s in steps]
     #
     # done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -115,7 +121,13 @@ async def handle(scopes):
     #
     # yield HandleStatus.success
 
-    await asyncio.gather(*[run(s) for s in steps])
+    # # Example 2
+    # await asyncio.gather(*[run(s) for s in steps])
+
+    # Example 3
+    async with asyncio_pool.AioPool(size=50) as pool:
+        for s in steps:
+            await pool.spawn(run(s))
 
     return True
 
@@ -123,16 +135,23 @@ async def handle(scopes):
 async def work():
     _scopes: str = os.environ.get('PIPE_WORKER_SCOPES', 'default')
     scopes: List = _scopes.split(',')
+    print('scopes', scopes)
 
+    last_loop_had_steps = True
     while True:
         # async for status in handle(scopes, loop):
         #     if status == HandleStatus.almost or status == HandleStatus.success:
         #         break
         #     elif status == HandleStatus.none:
         #         await asyncio.sleep(1.)
-        if not await handle(scopes):
-            print('waiting')
+        if await handle(scopes):
+            last_loop_had_steps = True
+        else:
+            if last_loop_had_steps:
+                print('waiting..')
+            last_loop_had_steps = False
             await asyncio.sleep(1.)
+
         # await asyncio.sleep(.01)
 
 

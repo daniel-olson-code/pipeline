@@ -1,142 +1,108 @@
-import step
+from __future__ import annotations
+import enum
+from typing import Any, List
+
+import execution
 import pipe_util
-import pipe_interpreter
 
 
-class StepDefinition:
-    name: str
-    language: str
-    function: str
-    path: str
-    code: str
-    using_code: bool = False
+class Result(object):
+    status: StepStatus = True
+    env: dict = None
+    priority: int = None
+    velocity: float = None
+    data: Any = None
 
+    def __init__(self, status = None, env = None, priority = None, velocity = None, data = None,):
+        self.status = status
+        self.env = env or {}
+        self.priority = priority
+        self.velocity = velocity
+        self.data = data
+
+    @classmethod
+    def from_result(cls, result):
+        self = cls()
+        status, env, p, v, data = result
+        self.status = status
+        self.env = env
+        self.priority = p
+        self.velocity = v
+        self.data = data
+        return self
+
+
+class StepStatus(enum.Enum):
+    success = 1
+    queued = 2
+    pending = 3
+    cancel = 4
+    reset = 5
+    working = 6
+    error = 7
+
+
+def create_return_value(value) -> Result:
+    result = None
+    if isinstance(value, Result):
+        return value
+    if not isinstance(value, tuple):
+        result = StepStatus.success, None, None, None, value
+    else:  # if isinstance(value, tuple):
+        if len(value) == 2:
+            result = value[0], None, None, None, value[1]
+        elif len(value) == 3:
+            result = value[0], value[1], None, None, value[2]
+            # result = value[0], value[1], None, None, None, Data({'value': value[2]})
+        elif len(value) == 4:
+            result = value[0], value[1], value[2], None, value[3]  # Data({'value': value[2]})
+            # result = value[0], value[1], value[2], None, None, Data({'value': value[2]})
+        elif len(value) == 5:
+            result = value[0], value[1], value[2], value[3], value[4]  # Data({'value': value[2]})
+            #  result = value[0], value[1], value[2], value[3], None, Data({'value': value[2]})
+        else:
+            raise ValueError('value is not a list or tuple.')
+        # if len(value) == 6:
+        #     result = value[0], value[1], value[2], value[3], value[4], value[5]  # Data({'value': value[2]})
+        #     #  result = value[0], value[1], value[2], value[3], value[4], Data({'value': value[2]})
+    # if self.caching:
+    #     self.cache = result
+    if result is None:
+        raise ValueError('value is not a list or tuple.')
+    return Result.from_result(result)
+
+
+class Step(pipe_util.PipeObject):
+    id: str = None
+    name: str = 'empty'
+    type: str = None
+    code: str = None
+    func: str = None
+    local: str = False  # code found locally
+    kwargs: dict = None
+    scope: str = 'default'
+    tag: str = None
     priority: int = 0
     velocity: float = None
-    tag: str = None
-    scope: str = 'default'
 
-    def __init__(self, name: str, language: str, function: str, path: str, code: str = '', using_code: bool = False, scope: str = None):
-        self.name = name
-        self.language = language
-        self.function = function
-        self.path = path
-        self.code = code
-        self.using_code = using_code
-        if scope:
-            self.scope = scope
+    parents: list[str] = None
+    children: List[str] = None
 
-    def to_step(self, env=None) -> step.Step:
-        _step = step.Step()
-        _step.id = pipe_util.get_id()
-        _step.name = self.name
-        _step.type = self.language
+    def get_code(self):
+        code = self.code
+        if self.local:
+            with open(self.code, 'r') as f:
+                code = f.read()
+        return code
 
-        if self.using_code:
-            _step.code = self.code
-        else:
-            _step.local = True
-            _step.code = self.path
-        _step.func = self.function
-        _step.kwargs = env or {}
-        _step.priority = self.priority
-        _step.velocity = self.velocity
-        _step.tag = self.tag
-        _step.scope = self.scope
-        return _step
+    def run(self, *args: Any) -> Result:
+        # print('stepping', self.name)
+        code = self.get_code()
+        if self.type == 'POSTGRESQL':
+            return create_return_value(execution.run_postgres(code, self.func, *args, **self.kwargs))  # True, Data({'value': run_postgres(code, self.func, data.value, **self.kwargs)})
+        if self.type == 'PYTHON':
+            # done, value = run_py(code, self.func, data.value, **self.kwargs)
+            return create_return_value(execution.run_py(code, self.func, *args, **self.kwargs))  # done, Data({'value': value})
+        if self.type == 'SQLITE3':
+            return create_return_value(execution.run_sqlite3(code, self.func, *args, **self.kwargs))  # True, Data({'value': run_sqlite3(code, self.func, data.value, **self.kwargs)})
 
-
-def check_for_step_definition(index: int, line: str, variables: dict, configurations: dict) -> bool:
-    i = index
-    if configurations['importing']:
-        importing_value: StepDefinition = variables[configurations['current import']]
-
-        if line.strip().startswith('!'):
-            if line.count('!') > 1:
-                raise SyntaxError(f'Line {i + 1}: Invalid block')
-            try:
-                importing_value.priority = int(line.strip()[1:])
-                return True
-            except ValueError:
-                raise SyntaxError(f'Line {i + 1}: Invalid priority. Must be integer.')
-
-        if line.strip().startswith('$') and line.strip().count('$') == 1:
-            if line.count('$') > 1:
-                raise SyntaxError(f'Line {i + 1}: Invalid block')
-            importing_value.scope = pipe_util.trim(line.strip()[1:])
-            return True
-
-        if line.strip().startswith('@') and line.strip().count('@') == 1:
-            if line.count('@') > 1:
-                raise SyntaxError(f'Line {i + 1}: Invalid block')
-            _line = line.strip()[1:].strip()
-            if not _line:
-                raise SyntaxError(f'Line {i + 1}: Tag/Velocity cannot be empty')
-            if not (set(_line) - set('*/+-. 1234567890')):
-                try:
-                    importing_value.velocity = eval(_line)
-                    return True
-                except Exception as e:
-                    raise SyntaxError(f'Line {i + 1}: Velocity could not be calculated. ({e})')
-            _line = pipe_util.trim(_line)
-            if _line not in variables:
-                raise SyntaxError(f'Line {i + 1}: Tag/Velocity not found')
-            importing_value.tag = pipe_util.trim(_line)
-            importing_value.velocity = variables[_line]
-            return True
-
-        if not importing_value.language:
-            importing_value.language = line.strip()
-            if importing_value.language in pipe_interpreter.LANGUAGES:
-                importing_value.language = pipe_interpreter.LANGUAGES[importing_value.language]
-                return True
-            else:
-                languages = ', '.join(pipe_interpreter.LANGUAGES.keys())
-                raise SyntaxError(
-                    f'line {i + 1}: Language {importing_value.language} not found. Languages: {languages}')
-        if not importing_value.function:
-            importing_value.function = line.strip()
-            if not importing_value.function:
-                raise SyntaxError(f'line {i + 1}: Function cannot be empty.')
-            return True
-        if not importing_value.path and not importing_value.using_code:
-            def strip_for_block(line):
-                return line.strip()  # .replace('\\`', '')
-
-            if not configurations['in code block']:
-                if strip_for_block(line).startswith('`'):
-                    if strip_for_block(line).endswith('`') and strip_for_block(line).count('`') == 2:
-                        importing_value.code = line.strip()[1:-1]
-                        importing_value.using_code = True
-                        return True
-                    elif strip_for_block(line).count('`') > 2:
-                        raise SyntaxError(f'Line {i + 1}: Invalid block')
-                    importing_value.code = line.strip()[1:]
-                    configurations['in code block'] = True
-                    return True
-                else:
-                    importing_value.path = pipe_util.trim(line)
-                    return True
-            else:
-                if strip_for_block(line).endswith('`'):
-                    if strip_for_block(line).count('`') > 1:
-                        raise SyntaxError(f'Line {i + 1}: Invalid block')
-                    importing_value.code += '\n' + line[:line.index('`')]
-                    configurations['in code block'] = False
-                    importing_value.using_code = True
-                    return True
-                else:
-                    if strip_for_block(line).count('`') > 0:
-                        raise SyntaxError(f'Line {i + 1}: Invalid block')
-                    importing_value.code += '\n' + line
-                    return True
-        configurations['importing'] = False
-
-    token = pipe_interpreter.PIPE_TOKENS['import']
-    if line.strip().endswith(token) and not line.strip().startswith('for'):
-        line = pipe_util.trim(line[:-len(token)])
-        variables[line] = StepDefinition(line, '', '', '', '', scope=variables['__scope__'])
-        configurations['current import'] = line
-        configurations['importing'] = True
-        return True
-    return False

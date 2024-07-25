@@ -78,6 +78,7 @@ def upload_pipe_code(code: str):
     variables = pipe_interpreter.get_steps_from_code(code)
     steps = variables['steps']
     starters = variables['starters']
+    print('uploading', len(steps), 'steps')
     for _step in steps.values():
         set_step(_step)
         status = step.StepStatus.pending if _step.id in starters else step.StepStatus.queued
@@ -293,7 +294,6 @@ def _error(step_id: str, msg: str, trace: str):
         conn.commit()
 
 
-@pipe_debug.timeit
 def get_steps(scopes: list, limit=50, chunk_size=100):
     """
     Get the steps in the scope, ordered by priority, velocity, then scope position.
@@ -450,7 +450,6 @@ def send(conn, data):
 #         receive(s)
 
 
-@pipe_debug.timeit
 def handle_client(connection):
     """
     Handles communication with a client.
@@ -534,7 +533,7 @@ def server_worker():
 
     while True:
         connection = connection_queue.get()
-        t = time.time()
+        # t = time.time()
         if connection is None:
             # Sentinel received, exit the loop
             break
@@ -542,7 +541,7 @@ def server_worker():
             handle_client(connection)
         finally:
             connection_queue.task_done()
-        pipe_debug.counter('server_worker', time.time() - t, pipe_debug.DEBUG_TABLE)
+        # pipe_debug.counter('server_worker', time.time() - t, pipe_debug.DEBUG_TABLE)
 
 
 def server(host='0.0.0.0', port=65432):
@@ -563,7 +562,7 @@ def server(host='0.0.0.0', port=65432):
         while True:
             connection, addr = s.accept()
             connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            print(f"Connected by {addr}")
+            # print(f"Connected by {addr}")
             connection_queue.put(connection)
 
 
@@ -577,12 +576,12 @@ def main():
 
     # Start a thread for decrementing tag usage
     decrement_thread = threading.Thread(target=decrement_tag_usage)
-    decrement_thread.daemon = True  # Daemonize the thread to stop with the main program
+    # decrement_thread.daemon = True  # Daemonize the thread to stop with the main program
     decrement_thread.start()
 
     # Start the worker thread
     worker_thread = threading.Thread(target=server_worker)
-    worker_thread.daemon = True  # Daemonize the thread to stop with the main program
+    # worker_thread.daemon = True  # Daemonize the thread to stop with the main program
     worker_thread.start()
 
     try:

@@ -7,7 +7,6 @@ import time
 import sqlite3_helper
 import postgres
 
-
 DEBUG_TABLE = 'debug'
 
 pg = postgres.get_postgres_from_env()
@@ -28,7 +27,7 @@ def counter(_id: str, change: int | float = 1, table_name: str = 'counter'):
     db = sqlite3_helper.Sqlite3('test.db')
     try:
         db.query(f'update {table_name} set count = count + {change} where id = ?;', _id)
-        t = db.download_table(sql=f'select * from {table_name} where id = ?;', parameters=(_id, ))
+        t = db.download_table(sql=f'select * from {table_name} where id = ?;', parameters=(_id,))
         # pg.query(f'update {table_name} set count = count + {change} where id = \'{_id}\';')
         # t = pg.download_table(sql=f'select * from {table_name} where id = \'{_id}\';')
     except:
@@ -53,7 +52,7 @@ def timeit(func: callable):
         v = func(*args, **kwargs)
         counter(f'{module_name}.{func_name}', time.time() - t, DEBUG_TABLE)
         return v
-    
+
     async def inner_async(*args, **kwargs):
         t = time.time()
         if inspect.isasyncgenfunction(func):
@@ -62,11 +61,12 @@ def timeit(func: callable):
                 async for v in func(*args, **kwargs):
                     yield v
                 counter(f'{module_name}.{func_name}', time.time() - t, DEBUG_TABLE)
+
             return gen()
         v = await func(*args, **kwargs)
         counter(f'{module_name}.{func_name}', time.time() - t, DEBUG_TABLE)
         return v
-    
+
     return inner if not inspect.iscoroutinefunction(func) else inner_async
 
 

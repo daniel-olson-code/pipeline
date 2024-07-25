@@ -220,7 +220,15 @@ class Postgres:
 
             return [dict(zip(column_names, check_values(row))) for row in table]
 
-    def upload_table(self, table_name: str, table: List[Dict], partition: str = None, partition_type: str = 'LIST', id_column=None):
+    def upload_table(
+            self,
+            table_name: str,
+            table: List[Dict],
+            partition: str | None = None,
+            partition_type: str | None = 'LIST',
+            partition_query: str | None = None,
+            id_column=None
+    ) -> None:
         """
         Uploads data to a PostgreSQL table.
 
@@ -229,8 +237,8 @@ class Postgres:
             table (List[Dict]): The data to upload, as a list of dictionaries.
             partition (str, optional): The column to use for partitioning.
             partition_type (str, optional): The type of partitioning to use. Defaults to 'LIST'.
-            conn (connection, optional): An existing database connection to use.
-            cur (cursor, optional): An existing database cursor to use.
+            partition_query (str, optional): A custom SQL query to execute for partitioning.
+                EXAMPLE: "CREATE TABLE IF NOT EXISTS "table_name_val" PARTITION OF "table_name" FOR VALUES IN ('val');"
             id_column (str, optional): The name of the ID column.
         """
         def convert_value(value):
@@ -240,7 +248,12 @@ class Postgres:
                 return value
             elif isinstance(value, (tuple, list, dict)):
                 return f"{json.dumps(value)}"
+            elif isinstance(value, (datetime.datetime, datetime.date)):
+                return value
             raise ValueError(f'cannot place {value} in type "{type(value)}"')
+        # check for multiple id_columns
+        ids = tuple(id_column) if isinstance(id_column, (set, tuple, list)) else (id_column, )
+        id_column = '", "'.join(id_column) if isinstance(id_column, (set, tuple, list)) else id_column
 
         # get all headers
         keys = {}
@@ -263,10 +276,29 @@ class Postgres:
             cur = conn.cursor()
             self.check_for_table(conn, cur, table_name, table, id_column, partition, partition_type)
 
+            if partition_query:
+                cur.execute(partition_query)
+                conn.commit()
             keys = ', '.join([f'"{k}"' for k in table[0].keys()])
             vals = ', '.join(['%s'] * len(table[0].keys()))
             q = f'INSERT INTO {table_name} ({keys}) VALUES ({vals})'
-            table = (tuple(row.values()) for row in table)
+            if id_column is not None:
+                f = {*ids}
+                if partition:
+                    f.add(partition)
+                def _filter(k):
+                    return k not in f  # {id_column, partition}  # k != id_column
+                conflict = f'("{id_column}")' if not partition or partition == id_column else f'("{id_column}", "{partition}")'
+                pers = ['%s'] * (len(tuple(filter(_filter, table[0].keys()))))  # - (1 + (not not partition)))
+                p1, p2 = '(' if len(pers) > 1 else '', ')' if len(pers) > 1 else ''
+                q = f'''INSERT INTO {table_name} ({keys}) VALUES ({vals})
+            ON CONFLICT {conflict} DO UPDATE SET {p1}{', '.join([f'"{k}"' for k in filter(_filter, table[0].keys())])}{p2} = {p1}{', '.join(pers)}{p2};'''
+                table = (tuple(list(row.values()) + [v for k, v in row.items() if _filter(k)  # k != id_column
+                                                     ]) for row in table)
+
+            else:
+                table = (tuple(row.values()) for row in table)
+            # table = (tuple(row.values()) for row in table)
 
             psycopg2.extras.execute_batch(cur, q, table)
 
@@ -371,260 +403,24 @@ class Postgres:
         """
         base_values = {'text': "''", 'real': '0', 'bigint': '0', 'integer': '0', 'json': "''",
                      'timestamp': datetime.datetime.utcnow(), 'date': "'2023-01-01'", 'boolean': 'false', 'character(10)': "''"}
+        conn.commit()
         try:
             cur.execute(f'ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE {new_type};')
             conn.commit()
         except psycopg2.errors.DatatypeMismatch as e:
             base_value = base_values[new_type]
             try:
+                conn.rollback()
                 cur.execute(f'ALTER TABLE {table_name} '
                             f'ALTER COLUMN {column_name} '
                             f'TYPE {new_type} '
                             f'USING (nullif({column_name}, {base_value}))::{new_type};')
                 conn.commit()
             except:  # (psycopg2.errors.InFailedSqlTransaction, psycopg2.errors.CannotCoerce) as e:
+                conn.rollback()
                 cur.execute(f'ALTER TABLE {table_name} '
                             f'ALTER COLUMN {column_name} '
                             f'TYPE {new_type} '
                             f'USING {column_name}::text::{new_type};')
                 conn.commit()
 
-
-# from __future__ import annotations
-# import psycopg2
-# import psycopg2.extensions
-# import psycopg2.extras
-# import psycopg2.errors
-# # from psycopg2.extras import execute_batch
-# import os
-# import json
-# import datetime
-# from typing import Union, List, Dict, Any, Optional, Callable
-#
-# try:
-#     import dotenv
-#     dotenv.load_dotenv()
-# except ModuleNotFoundError:
-#     pass
-#
-# def get_postgres_from_env() -> Postgres:
-#     """
-#     This function returns a Postgres object with the credentials from the environment variables.
-#     If the environment variables are not set, it returns a Postgres object with the default values.
-#
-#     Return:  Postgres
-#     """
-#     return Postgres(
-#         host=os.environ.get('POSTGRES_HOST', 'localhost'),
-#         port=os.environ.get('POSTGRES_PORT', '5432'),
-#         user=os.environ.get('POSTGRES_USER', 'daniel'),
-#         password=os.environ.get('POSTGRES_PASSWORD', 'MyPassword123'),
-#         database=os.environ.get('POSTGRES_DATABASE', 'my_db')
-#     )
-#
-#
-# def sort(val):
-#     _sort = {'text': 0, 'real': 1, 'bigint': 2, 'integer': 3, 'json': 4, 'timestamp': 5, 'date': 6, 'boolean': 7,
-#              'character(10)': 8, 'character': 8}
-#     return _sort[val] if val in _sort else 0
-#
-#
-# def get_type(val):
-#     if val is None:
-#         return 'boolean'  # 'character(10)'
-#     if isinstance(val, bool):
-#         return 'boolean'
-#     if isinstance(val, str):
-#         return 'text'
-#     if isinstance(val, float):
-#         return 'real'
-#     if isinstance(val, int):
-#         if -9223372036854775805 > val or val > 9223372036854775805:
-#             return 'text'
-#         if -2147483645 > val or val > 2147483645:
-#             return 'bigint'
-#         return 'integer'
-#     if isinstance(val, (list, dict)):
-#         return 'json'
-#     if isinstance(val, datetime.datetime):
-#         return 'timestamp'
-#     if isinstance(val, datetime.date):
-#         return 'date'
-#     return 'text'
-#
-#
-# def guess_data_type(column: List):
-#     v = {get_type(cell) for cell in column}
-#     v = list(sorted(v, key=lambda a: sort(a)))
-#     v = v[0]
-#     return v
-#
-#
-# def guess_table_schema(table: List[Dict]):
-#     vv = {}
-#     for row in table:
-#         for k, v in row.items():
-#             if k not in vv:
-#                 vv[k] = []
-#             vv[k].append(v)
-#     return {k: guess_data_type(v) for k, v in vv.items()}
-#
-#
-# class Postgres:
-#     host: str = 'localhost'
-#     port: str = '5432'
-#     user: str = 'daniel'
-#     password: str = 'MyPassword123'
-#     database: str = 'my_db'
-#
-#     def __init__(self, host=None, port=None, user=None, password=None, database=None):
-#         self.host = host or self.host
-#         self.port = port or self.port
-#         self.user = user or self.user
-#         self.password = password or self.password
-#         self.database = database or self.database
-#
-#     def download_table(self, table_name: str = None, columns='*', suffix='', sql=None):
-#         query = (sql or f'select {columns} from {table_name} {suffix};')
-#
-#         with psycopg2.connect(
-#                 host=self.host,
-#                 port=self.port,
-#                 user=self.user,
-#                 password=self.password,
-#                 database=self.database
-#         ) as conn:
-#             cur = conn.cursor()
-#
-#             cur.execute(query)
-#
-#             table = cur.fetchall()
-#             column_names = tuple(col[0] for col in cur.description)
-#
-#             return [dict(zip(column_names, row)) for row in table]  # to_list_of_dict_table(column_names, table)
-#
-#     def upload_table(self, table_name: str, table: List[Dict], partition: str = None, partition_type: str = 'LIST',
-#                      conn=None, cur=None,
-#                      id_column=None):
-#         def convert_value(value):
-#             if isinstance(value, str):
-#                 return value.replace("'", "''")
-#             if isinstance(value, (int, float, bool, type(None), datetime.datetime)):
-#                 return value
-#             elif isinstance(value, (tuple, list, dict)):
-#                 return f"{json.dumps(value)}"
-#             raise ValueError(f'cannot place {value} in type "{type(value)}"')
-#
-#         # get all headers
-#         keys = {}
-#         for row in table:
-#             for key in row:
-#                 if key not in keys:
-#                     keys[key] = None
-#
-#         # put headers in order, giving None values to missing headers
-#         for i, row in enumerate(table):
-#             table[i] = {k: convert_value(row.get(k, None)) for k in keys}
-#
-#         with psycopg2.connect(
-#                 host=self.host,
-#                 port=self.port,
-#                 user=self.user,
-#                 password=self.password,
-#                 database=self.database
-#         ) as conn:
-#             cur = conn.cursor()
-#             self.check_for_table(conn, cur, table_name, table, id_column, partition, partition_type)
-#
-#             keys = ', '.join([f'"{k}"' for k in table[0].keys()])
-#             vals = ', '.join(['%s'] * len(table[0].keys()))
-#             q = f'INSERT INTO {table_name} ({keys}) VALUES ({vals})'
-#             table = (tuple(row.values()) for row in table)
-#
-#             psycopg2.extras.execute_batch(cur, q, table)
-#
-#             conn.commit()
-#
-#     def table_schema(self, table_name: str, cur):
-#         query = f"SELECT column_name, data_type FROM information_schema.columns where table_name = '{table_name}' ORDER BY ordinal_position;"
-#         cur.execute(query)
-#         return cur.fetchall()  # tuple(map(lambda row: row[0], cur.fetchall()))
-#
-#     def check_for_table(self, conn, cur, table_name: str, table: List[Dict], id_column=None, partition: str = None,
-#                         partition_type: str = 'LIST', skip_alterations=False):
-#         schema = guess_table_schema(table)
-#
-#         cur.execute(
-#             f"SELECT EXISTS (SELECT 1 FROM pg_tables  WHERE tablename = '{table_name}') AS table_existence;")
-#         table_exists = cur.fetchall()[0][0]
-#
-#         if not table_exists:
-#             try:
-#                 e, primary = '', ' primary key UNIQUE' * (not partition)  # empty, extra
-#                 unique = ''  # f', UNIQUE("{id_column}")' if id_column else ''
-#                 if id_column:
-#                     if partition:
-#                         if id_column == partition:
-#                             unique = f', PRIMARY KEY ("{id_column}")'
-#                         else:
-#                             unique = f', PRIMARY KEY ("{id_column}", "{partition}")'
-#                     else:
-#                         unique = f', UNIQUE("{id_column}")'
-#                 end = ';' if not isinstance(partition, str) else f' PARTITION BY {partition_type} ("{partition}");'
-#
-#                 def ok(k, v):
-#                     if partition:
-#                         if k == id_column:
-#                             return f'"{k}" {v}'
-#                     if k == partition:
-#                         return f'"{k}" {v}'
-#                     return f'"{k}" {v}{primary if k == id_column else e}'
-#
-#                 sql = f'''create table if not exists {table_name}({", ".join([ok(k, v) for k, v in schema.items()])}{unique}){end}'''
-#
-#                 cur.execute(sql)
-#                 conn.commit()
-#             except psycopg2.errors.UniqueViolation as e:
-#                 print(e)
-#         elif not skip_alterations:
-#             db_schema = dict(self.table_schema(table_name, cur))
-#             conn.commit()
-#
-#             for col in set(schema.keys()) ^ set(db_schema.keys()):
-#                 if col in schema:
-#                     try:
-#                         cur.execute(f'ALTER TABLE {table_name} ADD COLUMN "{col}" {schema[col]};')
-#                         conn.commit()
-#                     except psycopg2.errors.DuplicateColumn as e:
-#                         print(e)
-#                 elif col in db_schema:
-#                     pass
-#
-#             for col in set(schema.keys()) & set(db_schema.keys()):
-#                 if schema[col] != db_schema[col]:
-#                     if sort(schema[col]) < sort(db_schema[col]):
-#                         # print(f'comparing {sort(schema[col])} < {sort(db_schema[col])} == sort({schema[col]}) < sort({db_schema[col]})')
-#                         self.convert_table_column_type(table_name, f'"{col}"', schema[col], conn, cur)
-#                     elif sort(schema[col]) > sort(db_schema[col]):
-#                         pass
-#
-#     def convert_table_column_type(self, table_name: str, column_name: str, new_type: str, conn, cur):
-#         base_values = {'text': "''", 'real': '0', 'bigint': '0', 'integer': '0', 'json': "''",
-#                      'timestamp': datetime.datetime.utcnow(), 'date': "'2023-01-01'", 'boolean': 'false', 'character(10)': "''"}
-#         try:
-#             cur.execute(f'ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE {new_type};')
-#             conn.commit()
-#         except psycopg2.errors.DatatypeMismatch as e:
-#             base_value = base_values[new_type]
-#             try:
-#                 cur.execute(f'ALTER TABLE {table_name} '
-#                             f'ALTER COLUMN {column_name} '
-#                             f'TYPE {new_type} '
-#                             f'USING (nullif({column_name}, {base_value}))::{new_type};')
-#                 conn.commit()
-#             except:  # (psycopg2.errors.InFailedSqlTransaction, psycopg2.errors.CannotCoerce) as e:
-#                 cur.execute(f'ALTER TABLE {table_name} '
-#                             f'ALTER COLUMN {column_name} '
-#                             f'TYPE {new_type} '
-#                             f'USING {column_name}::text::{new_type};')
-#                 conn.commit()

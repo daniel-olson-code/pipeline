@@ -65,36 +65,3 @@ def check_for_actions(index: int, line: str, variables: dict) -> bool:
 
         return True
     return False
-
-# import pipe_util
-# import pipe
-# import pipe_interpreter
-#
-#
-# def check_for_actions(index: int, line: str, variables: dict) -> bool:
-#     begin_token, end_token = pipe_interpreter.PIPE_TOKENS['func']
-#     if begin_token in line and end_token in line and not line.strip().startswith('for'):
-#         if line.count(begin_token) > 1:
-#             raise SyntaxError(f'Line {index+1}: Invalid call. To many \'{begin_token}\'')
-#         if line.count(end_token) > 1:
-#             raise SyntaxError(f'Line {index+1}: Invalid call. To many \'{end_token}\'')
-#         return_value = ''
-#         if '=' in line.replace('=>', ''):
-#             if line.count('=') > 1:
-#                 raise SyntaxError(f'Line {index+1}: Invalid call. To many \'=\'')
-#             return_value, line = line.split('=')
-#             return_value = pipe_util.trim(return_value)
-#         name, args = line.split(begin_token)
-#         args = ','.join([pipe_util.trim(arg) for arg in args.split(end_token)[0].strip().split(',') if pipe_util.trim(arg) != ''])
-#         name = pipe_util.trim(name)
-#         if name not in variables:
-#             raise SyntaxError(f'Line {index+1}: Call to unknown function \'{name}\'')
-#         _pipe: pipe.Pipe = variables[name]
-#         if not isinstance(_pipe, pipe.Pipe):
-#             print('pipe is ',  type(_pipe))
-#             raise TypeError(f'Line {index+1}: \'{name}\' is not a function')
-#         val = _pipe.create_steps(index, variables, args, pipe_util.json_copy(_pipe.kwargs))
-#         if return_value:
-#             variables[return_value] = val  # _pipe.create_steps(index, variables, args, json_copy(_pipe.kwargs)) #Call(name, args, json_copy(_pipe.kwargs), return_value)
-#         return True
-#     return False
