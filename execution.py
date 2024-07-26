@@ -36,7 +36,7 @@ def temp_mod(txt: str):
     Raises:
         PipeLineException: If there's an error in creating or removing the temporary module.
     """
-    mod = f'{pipe_util.get_id()}.py'
+    mod = f'temp_{pipe_util.get_id()}.py'
     try:
         with open(mod, 'w') as f:
             f.write(txt)

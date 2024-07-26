@@ -17,6 +17,7 @@ import step_definition
 import pipe
 import action
 import loop
+import step
 
 
 # Constants
@@ -35,17 +36,20 @@ PIPE_TOKENS = {
     'block': [{'start': '`', 'end': '`'}]
 }
 
+
 LANGUAGES = {
-    'python': 'PYTHON',
-    'python3': 'PYTHON',
-    'py': 'PYTHON',
-    'pg': 'POSTGRESQL',
-    'postgres': 'POSTGRESQL',
-    'postgresql': 'POSTGRESQL',
-    'sqlite3': 'SQLITE3',
-    'sqlite': 'SQLITE3'
+    'python': step.LanguageTypes.python.value,
+    'python3': step.LanguageTypes.python.value,
+    'py': step.LanguageTypes.python.value,
+    'pg': step.LanguageTypes.postgres.value,
+    'postgres': step.LanguageTypes.postgres.value,
+    'postgresql': step.LanguageTypes.postgres.value,
+    'sqlite3': step.LanguageTypes.sqlite3.value,
+    'sqlite': step.LanguageTypes.sqlite3.value
 }
 
+
+...
 
 def check_for_scope(index: int, line: str, variables: dict) -> bool:
     """Check if the current line defines a scope and update variables accordingly.
