@@ -5,12 +5,13 @@ pipeline language. It includes utilities for handling scopes, steps, pipes, acti
 and loops within the custom language.
 
 Constants:
-    TAB (str): A string constant representing four spaces.
+    INDENT (str): A string constant representing four spaces.
     PIPE_TOKENS (dict): A dictionary defining various tokens used in the pipeline language.
     LANGUAGES (dict): A dictionary mapping language names to their standardized identifiers.
 """
 import json
 import sys
+from typing import Dict, Any
 
 import pipe_util
 import step_definition
@@ -18,10 +19,16 @@ import pipe
 import action
 import loop
 import step
+# from . import pipe_util
+# from . import step_definition
+# from . import pipe
+# from . import action
+# from . import loop
+# from . import step
 
 
 # Constants
-TAB = '    '
+INDENT = '    '
 PIPE_TOKENS = {
     'import': ':',
     'pipe': '|',
@@ -49,9 +56,7 @@ LANGUAGES = {
 }
 
 
-...
-
-def check_for_scope(index: int, line: str, variables: dict) -> bool:
+def check_for_scope(index: int, line: str, variables: Dict) -> bool:
     """Check if the current line defines a scope and update variables accordingly.
 
     Args:
@@ -77,7 +82,7 @@ def check_for_scope(index: int, line: str, variables: dict) -> bool:
     return False
 
 
-def run(code: str) -> dict:
+def run(code: str) -> Dict:
     """Parse and execute the given pipeline code.
 
     Args:
@@ -176,7 +181,7 @@ def run(code: str) -> dict:
         sys.exit(1)
 
 
-def get_steps_from_code(code: str) -> dict:
+def get_steps_from_code(code: str) -> Dict[str, Any]:
     """Extract steps and starters from the given pipeline code.
 
     Args:

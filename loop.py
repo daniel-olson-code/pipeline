@@ -94,9 +94,9 @@ def check_loop(
                 int: The indentation level.
             """
             indentation = 0
-            while text.startswith(pipe_interpreter.TAB):
+            while text.startswith(pipe_interpreter.INDENT):
                 indentation += 1
-                text = text[len(pipe_interpreter.TAB):]
+                text = text[len(pipe_interpreter.INDENT):]
             return indentation
 
         indentation = get_indentation(line)
