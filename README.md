@@ -153,6 +153,7 @@ for item in pipe1():
 - Save your pipeline script as a .pipe file.
 - Use the Pipeline API to upload and run your script:
 ```python
+# example.py
 import pipeline
 
 pipeline.upload_pipe_code_from_file('your_script.pipe')
