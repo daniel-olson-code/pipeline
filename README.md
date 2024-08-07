@@ -9,7 +9,7 @@ Pipeline is an asynchronous ETL (Extract, Transform, Load) system that uses a cu
 - [Supported Languages](#supported-languages)
 - [Configuration](#configuration)
 - [Usage](#usage)
-- [Learn by Examples](#learn-by-example)
+- [Learn by Example](#learn-by-example)
 - [Performance](#performance) <!--- - [Contributing](#contributing) -->
 - [Future of Pipeline](#plans)
 - [License](#license)
@@ -162,7 +162,7 @@ pipeline.upload_pipe_code_from_file('your_script.pipe')
 ## Learn by Example
 
 ```python
-# the defailt scope is set to `production-small` for all steps (imports)
+# the default scope is set to `production-small` for all steps (imports)
 # setting scopes is how you make new steps with errors
 # not slow down your servers by setting them to a lower scope.
 # And/or how you handle processes that either require and do not require big machines to run
